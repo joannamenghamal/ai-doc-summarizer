@@ -27,7 +27,7 @@ console.log("API Key Loaded?", !!process.env.GEMINI_API_KEY);
 
 // Multer for file uploads
 const upload = multer({ dest: "uploads/" });
-const pdfParse = require("pdf-parse");
+//const pdfParse = require("pdf-parse");
 
 
 function delay(ms) {
