@@ -42,11 +42,15 @@ app.post("/summarize",upload.single("file"), async (req, res) => {
             // small delay to ensure file is fully saved
             await delay(200); // 200 milliseconds delay
             console.log("Uploaded file path:", req.file.path);
+
+            if (!fs.existsSync(req.file.path)) {
+                throw new Error(`File not found: ${req.file.path}`);
+            }
             const dataBuffer = fs.readFileSync(req.file.path); 
             console.log("Buffer length:", dataBuffer.length);
             const pdfData = await pdfParse(dataBuffer);
             extractedText = pdfData.text;
-            fs.unlinkSync(req.file.path); // delete temp file
+            fs.unlinkSync(req.file.path); // delete after parsing 
         }
     
         if (!extractedText.trim()) {
