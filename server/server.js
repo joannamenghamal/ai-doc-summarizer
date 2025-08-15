@@ -7,10 +7,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
 import mammoth from 'mammoth';
+import { createRequire } from 'module';
+
+// The require function is created here to correctly import the CommonJS
+// build of pdfjs-dist in our ES Module environment.
+const require = createRequire(import.meta.url);
 
 // Importing pdfjs-dist and its worker using the legacy build.
 // This is the correct build for a Node.js environment to avoid browser API errors like "DOMMatrix is not defined".
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.js';
+const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
 const { getDocument, GlobalWorkerOptions } = pdfjs;
 
 // Figure out current file directory (ESM safe)
@@ -18,7 +23,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // This is the second part of the fix: point the worker to the correct local file.
-// We are now using the standard .mjs worker file.
 GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/legacy/build/pdf.worker.js');
 
 const app = express();
