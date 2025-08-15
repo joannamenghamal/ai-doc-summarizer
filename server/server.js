@@ -1,7 +1,13 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
 import pdfjsLib from 'pdfjs-dist'; // Updated import to handle CommonJS module
+
 // Destructure the necessary objects from the imported library
 const { getDocument, GlobalWorkerOptions } = pdfjsLib;
 
@@ -41,6 +47,10 @@ async function extractTextFromPDF(pdfBuffer) {
     }
     return text;
 }
+
+app.get("/", (req, res) => {
+    res.send("Server is running!");
+});
 
 app.post("/summarize", upload.single("file"), async (req, res) => {
     let extractedText = req.body.text;
@@ -90,3 +100,5 @@ app.get("/ping", (req, res) => {
     console.log("✅ Frontend pinged backend!");
     res.json({ message: "pong" });
 });
+
+app.listen(4000, () => console.log("Server running on port 4000"));
