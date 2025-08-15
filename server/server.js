@@ -8,9 +8,10 @@ import multer from "multer";
 import fs from "fs/promises";
 import mammoth from 'mammoth';
 
-// Importing pdfjs-dist and its worker using the standard ES module path.
-// This is more reliable and avoids the "ERR_MODULE_NOT_FOUND" error.
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/build/pdf.mjs';
+// Importing pdfjs-dist and its worker using the legacy build.
+// This is the correct build for a Node.js environment to avoid browser API errors like "DOMMatrix is not defined".
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.js';
+const { getDocument, GlobalWorkerOptions } = pdfjs;
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
@@ -18,7 +19,7 @@ const __dirname = path.dirname(__filename);
 
 // This is the second part of the fix: point the worker to the correct local file.
 // We are now using the standard .mjs worker file.
-GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.mjs');
+GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/legacy/build/pdf.worker.js');
 
 const app = express();
 app.use(cors());
