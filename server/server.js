@@ -10,7 +10,7 @@ import mammoth from 'mammoth';
 
 // This is the crucial fix for the "ERR_MODULE_NOT_FOUND" error.
 // We use a CommonJS 'require' to reliably load the legacy build of pdfjs-dist.
-const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.js';
 const { getDocument, GlobalWorkerOptions } = pdfjs;
 
 // Figure out current file directory (ESM safe)
