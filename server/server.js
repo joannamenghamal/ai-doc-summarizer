@@ -4,13 +4,16 @@ import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pdfParse from "pdf-parse";
 import multer from "multer";
-import fs from "fs/promises"; // Use the promises API for async file operations
+import fs from "fs/promises";
+import * as pdfjsLib from 'pdfjs-dist'; // Import pdfjs-dist
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Configure pdfjs-dist worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
 
 const app = express();
 app.use(cors());
@@ -30,6 +33,18 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Function to extract text from a PDF buffer
+async function extractTextFromPDF(pdfBuffer) {
+    const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text;
+}
+
 app.post("/summarize", upload.single("file"), async (req, res) => {
     let extractedText = req.body.text;
     let filePath;
@@ -39,16 +54,15 @@ app.post("/summarize", upload.single("file"), async (req, res) => {
             filePath = req.file.path;
             console.log(`Uploaded file path: ${filePath}`);
 
-            // Use the promises API for safer, non-blocking file operations
             const dataBuffer = await fs.readFile(filePath);
             console.log(`Buffer length: ${dataBuffer.length}`);
-            const pdfData = await pdfParse(dataBuffer);
-            extractedText = pdfData.text;
-            console.log("PDF parsing completed successfully.");
+            
+            // Call the new function to extract text using pdfjs-dist
+            extractedText = await extractTextFromPDF(dataBuffer);
+            console.log("PDF parsing completed successfully with pdfjs-dist.");
         }
     
         if (!extractedText || !extractedText.trim()) {
-            // Check for empty text after parsing
             return res.status(400).json({ error: "No readable text or PDF content found" });
         }
 
@@ -63,10 +77,8 @@ app.post("/summarize", upload.single("file"), async (req, res) => {
         console.error("Error in /summarize endpoint:", error);
         res.status(500).json({ error: "Error generating summary", details: error.message });
     } finally {
-        // IMPORTANT: Ensure the temporary file is always deleted
         if (filePath) {
             try {
-                // Check if the file still exists before attempting to unlink
                 await fs.access(filePath);
                 await fs.unlink(filePath);
                 console.log(`Temporary file deleted: ${filePath}`);
