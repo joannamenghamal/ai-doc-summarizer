@@ -8,9 +8,10 @@ import multer from "multer";
 import fs from "fs/promises";
 import mammoth from 'mammoth';
 
-// This is the crucial fix for the "DOMMatrix" error.
-// We must import the legacy build of pdfjs-dist for Node.js.
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.js';
+// This is the crucial fix for the "ERR_MODULE_NOT_FOUND" error.
+// We use a CommonJS 'require' to reliably load the legacy build of pdfjs-dist.
+const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+const { getDocument, GlobalWorkerOptions } = pdfjs;
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
