@@ -6,14 +6,14 @@ import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
-import * as pdfjsLib from 'pdfjs-dist'; // Import pdfjs-dist
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'; // Updated import
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configure pdfjs-dist worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
 
 const app = express();
 app.use(cors());
@@ -35,7 +35,7 @@ function delay(ms) {
 
 // Function to extract text from a PDF buffer
 async function extractTextFromPDF(pdfBuffer) {
-    const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+    const pdf = await getDocument({ data: pdfBuffer }).promise;
     let text = '';
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
