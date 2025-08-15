@@ -8,16 +8,16 @@ import multer from "multer";
 import fs from "fs/promises";
 import mammoth from 'mammoth';
 
-// Importing pdfjs-dist and its worker
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+// This is the crucial fix for the "DOMMatrix" error.
+// We must import the legacy build of pdfjs-dist for Node.js.
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.js';
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Fix for pdfjs-dist on the server-side.
-// We must point to a local worker file, not a CDN.
-GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.js');
+// This is the second part of the fix: point the worker to the local legacy file.
+GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/legacy/build/pdf.worker.js');
 
 const app = express();
 app.use(cors());
