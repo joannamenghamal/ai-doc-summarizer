@@ -6,7 +6,10 @@ import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'; // Updated import
+import pdfjsLib from 'pdfjs-dist'; // Updated import to handle CommonJS module
+
+// Destructure the necessary objects from the imported library
+const { getDocument, GlobalWorkerOptions } = pdfjsLib;
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
