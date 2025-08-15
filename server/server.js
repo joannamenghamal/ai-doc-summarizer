@@ -6,17 +6,18 @@ import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
-import pdfjsLib from 'pdfjs-dist'; // Updated import to handle CommonJS module
+import mammoth from 'mammoth';
 
-// Destructure the necessary objects from the imported library
-const { getDocument, GlobalWorkerOptions } = pdfjsLib;
+// Importing pdfjs-dist and its worker
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure pdfjs-dist worker source
-GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+// Fix for pdfjs-dist on the server-side.
+// We must point to a local worker file, not a CDN.
+GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.js');
 
 const app = express();
 app.use(cors());
@@ -57,20 +58,42 @@ app.post("/summarize", upload.single("file"), async (req, res) => {
     let filePath;
 
     try {
-        if (req.file && req.file.mimetype === "application/pdf") {
+        if (req.file) {
             filePath = req.file.path;
+            const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
             console.log(`Uploaded file path: ${filePath}`);
-
+            
             const dataBuffer = await fs.readFile(filePath);
             console.log(`Buffer length: ${dataBuffer.length}`);
             
-            // Call the new function to extract text using pdfjs-dist
-            extractedText = await extractTextFromPDF(dataBuffer);
-            console.log("PDF parsing completed successfully with pdfjs-dist.");
+            // Handle different file types
+            switch (fileExtension) {
+                case 'pdf':
+                    extractedText = await extractTextFromPDF(dataBuffer);
+                    console.log("PDF parsing completed successfully with pdfjs-dist.");
+                    break;
+                case 'doc':
+                case 'docx':
+                    const result = await mammoth.extractRawText({ arrayBuffer: dataBuffer });
+                    extractedText = result.value;
+                    console.log("DOCX parsing completed successfully with mammoth.");
+                    break;
+                case 'txt':
+                    extractedText = dataBuffer.toString('utf8');
+                    console.log("TXT parsing completed successfully.");
+                    break;
+                default:
+                    return res.status(400).json({ error: 'Unsupported file type.' });
+            }
         }
     
         if (!extractedText || !extractedText.trim()) {
             return res.status(400).json({ error: "No readable text or PDF content found" });
+        }
+        
+        // Check for minimum text length before sending to API
+        if (extractedText.length < 100) {
+            return res.status(400).json({ error: 'Text is too short to summarize. Minimum 100 characters required.' });
         }
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -84,6 +107,7 @@ app.post("/summarize", upload.single("file"), async (req, res) => {
         console.error("Error in /summarize endpoint:", error);
         res.status(500).json({ error: "Error generating summary", details: error.message });
     } finally {
+        // Clean up temporary file
         if (filePath) {
             try {
                 await fs.access(filePath);
