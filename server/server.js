@@ -6,14 +6,19 @@ import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
-import * as pdfjsLib from 'pdfjs-dist'; // Import pdfjs-dist
+import mammoth from 'mammoth';
+
+// Importing pdfjs-dist and its worker using the standard ES module path.
+// This is more reliable and avoids the "ERR_MODULE_NOT_FOUND" error.
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/build/pdf.mjs';
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure pdfjs-dist worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+// This is the second part of the fix: point the worker to the correct local file.
+// We are now using the standard .mjs worker file.
+GlobalWorkerOptions.workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.mjs');
 
 const app = express();
 app.use(cors());
@@ -35,7 +40,7 @@ function delay(ms) {
 
 // Function to extract text from a PDF buffer
 async function extractTextFromPDF(pdfBuffer) {
-    const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+    const pdf = await getDocument({ data: pdfBuffer }).promise;
     let text = '';
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -45,25 +50,51 @@ async function extractTextFromPDF(pdfBuffer) {
     return text;
 }
 
+app.get("/", (req, res) => {
+    res.send("Server is running!");
+});
+
 app.post("/summarize", upload.single("file"), async (req, res) => {
     let extractedText = req.body.text;
     let filePath;
 
     try {
-        if (req.file && req.file.mimetype === "application/pdf") {
+        if (req.file) {
             filePath = req.file.path;
+            const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
             console.log(`Uploaded file path: ${filePath}`);
-
+            
             const dataBuffer = await fs.readFile(filePath);
             console.log(`Buffer length: ${dataBuffer.length}`);
             
-            // Call the new function to extract text using pdfjs-dist
-            extractedText = await extractTextFromPDF(dataBuffer);
-            console.log("PDF parsing completed successfully with pdfjs-dist.");
+            // Handle different file types
+            switch (fileExtension) {
+                case 'pdf':
+                    extractedText = await extractTextFromPDF(dataBuffer);
+                    console.log("PDF parsing completed successfully with pdfjs-dist.");
+                    break;
+                case 'doc':
+                case 'docx':
+                    const result = await mammoth.extractRawText({ arrayBuffer: dataBuffer });
+                    extractedText = result.value;
+                    console.log("DOCX parsing completed successfully with mammoth.");
+                    break;
+                case 'txt':
+                    extractedText = dataBuffer.toString('utf8');
+                    console.log("TXT parsing completed successfully.");
+                    break;
+                default:
+                    return res.status(400).json({ error: 'Unsupported file type.' });
+            }
         }
     
         if (!extractedText || !extractedText.trim()) {
             return res.status(400).json({ error: "No readable text or PDF content found" });
+        }
+        
+        // Check for minimum text length before sending to API
+        if (extractedText.length < 100) {
+            return res.status(400).json({ error: 'Text is too short to summarize. Minimum 100 characters required.' });
         }
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -77,6 +108,7 @@ app.post("/summarize", upload.single("file"), async (req, res) => {
         console.error("Error in /summarize endpoint:", error);
         res.status(500).json({ error: "Error generating summary", details: error.message });
     } finally {
+        // Clean up temporary file
         if (filePath) {
             try {
                 await fs.access(filePath);
