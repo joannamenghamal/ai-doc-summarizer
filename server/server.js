@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import { fileURLToPath} from 'url';
 import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-//import pdfParse from "pdf-parse";
+import pdfParse from "pdf-parse";
 import multer from "multer";
 import fs from "fs";
 
@@ -27,7 +27,6 @@ console.log("API Key Loaded?", !!process.env.GEMINI_API_KEY);
 
 // Multer for file uploads
 const upload = multer({ dest: "uploads/" });
-const pdfParse = require("pdf-parse");
 
 
 function delay(ms) {
