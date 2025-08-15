@@ -48,6 +48,10 @@ async function extractTextFromPDF(pdfBuffer) {
     return text;
 }
 
+app.get("/", (req, res) => {
+    res.send("Server is running!");
+});
+
 app.post("/summarize", upload.single("file"), async (req, res) => {
     let extractedText = req.body.text;
     let filePath;
