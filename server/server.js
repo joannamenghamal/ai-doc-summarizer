@@ -15,8 +15,7 @@ const { getDocument, GlobalWorkerOptions } = pdfjsLib;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure pdfjs-dist worker source
-GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = null;
 
 const app = express();
 app.use(cors());
