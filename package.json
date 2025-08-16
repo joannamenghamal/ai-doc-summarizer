@@ -19,7 +19,7 @@
     "express": "^5.1.0",
     "mammoth": "^1.10.0",
     "multer": "^2.0.2",
-    "pdfjs-dist": "^5.4.54",
+    "pdfjs-dist": "^2.16.105",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
