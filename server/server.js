@@ -6,9 +6,7 @@ import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'; // Updated import to handle CommonJS module
 
 // Destructure the necessary objects from the imported library
 const { getDocument, GlobalWorkerOptions } = pdfjsLib;
