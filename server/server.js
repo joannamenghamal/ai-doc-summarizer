@@ -6,7 +6,9 @@ import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
-import pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'; // Updated import to handle CommonJS module
+import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 // Destructure the necessary objects from the imported library
 const { getDocument, GlobalWorkerOptions } = pdfjsLib;
@@ -16,10 +18,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configure pdfjs-dist worker source
-GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+//GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
 
 const app = express();
-app.use(cors());
+app.use(cors());            
 app.use(express.json());
 dotenv.config({ path: path.join(__dirname, '.env') });
 
