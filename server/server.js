@@ -1,69 +1,114 @@
 import express from "express";
-import multer from "multer";
-import fs from "fs";
-import pdf from "pdf-parse";
-import mammoth from "mammoth";
+import cors from "cors";
+import dotenv from "dotenv";
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import multer from "multer";
+import fs from "fs/promises";
+import mammoth from 'mammoth';
+import { createRequire } from 'module';
+
+// The require function is created here to correctly import the CommonJS
+// build of 'pdf-parse' in our ES Module environment.
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
+
+// Figure out current file directory (ESM safe)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
-const PORT = process.env.PORT || 3001;
 
-// Gemini setup
+// Load environment variables from a .env file
+dotenv.config({ path: path.join(__dirname, '.env') });
+const PORT = process.env.PORT || 4000;
+
+// Set up Gemini and the model
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+// Using gemini-1.5-flash for efficient and high-quality summarization.
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// Middleware for CORS and JSON body parsing
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Handle text input directly (pasted by user)
-app.post("/api/analyze-text", async (req, res) => {
-  try {
-    const { text } = req.body;
-    if (!text || text.trim() === "") {
-      return res.status(400).json({ error: "No text provided" });
-    }
+// Function to extract text from a PDF buffer using pdf-parse
+async function extractTextFromPDF(pdfBuffer) {
+    const data = await pdfParse(pdfBuffer);
+    return data.text;
+}
 
-    const result = await model.generateContent(`Analyze this text:\n\n${text}`);
-    res.json({ summary: result.response.text() });
-  } catch (err) {
-    console.error("Error analyzing text:", err);
-    res.status(500).json({ error: "Failed to analyze text" });
-  }
+// Unified API endpoint to handle both file uploads and pasted text
+app.post("/summarize", upload.single("file"), async (req, res) => {
+    let extractedText = req.body.text;
+    let filePath;
+
+    try {
+        if (req.file) {
+            filePath = req.file.path;
+            const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+            
+            const dataBuffer = await fs.readFile(filePath);
+            
+            // Handle different file types
+            switch (fileExtension) {
+                case 'pdf':
+                    extractedText = await extractTextFromPDF(dataBuffer);
+                    console.log("PDF parsing completed successfully.");
+                    break;
+                case 'docx':
+                    const result = await mammoth.extractRawText({ arrayBuffer: dataBuffer });
+                    extractedText = result.value;
+                    console.log("DOCX parsing completed successfully.");
+                    break;
+                case 'txt':
+                    extractedText = dataBuffer.toString('utf8');
+                    console.log("TXT parsing completed successfully.");
+                    break;
+                default:
+                    return res.status(400).json({ error: 'Unsupported file type. Please upload a .pdf, .docx, or .txt file.' });
+            }
+        }
+    
+        if (!extractedText || extractedText.trim() === "") {
+            return res.status(400).json({ error: "No readable text content found to summarize." });
+        }
+        
+        // Check for minimum text length before sending to API
+        if (extractedText.length < 100) {
+            return res.status(400).json({ error: 'Text is too short to summarize. Minimum 100 characters required.' });
+        }
+
+        const prompt = `Summarize the following text clearly and concisely:\n\n${extractedText}`;
+        const result = await model.generateContent(prompt);
+        const summary = result.response.text();
+
+        res.json({ summary });
+    } catch (error) {
+        console.error("Error in /summarize endpoint:", error);
+        res.status(500).json({ error: "Error generating summary", details: error.message });
+    } finally {
+        // Ensure the temporary file is always deleted
+        if (filePath) {
+            try {
+                await fs.unlink(filePath);
+                console.log(`Temporary file deleted: ${filePath}`);
+            } catch (unlinkError) {
+                console.error(`Failed to delete temporary file ${filePath}:`, unlinkError);
+            }
+        }
+    }
 });
 
-// Handle file uploads (pdf/docx/txt)
-app.post("/api/upload", upload.single("file"), async (req, res) => {
-  try {
-    const filePath = req.file.path;
-    const ext = req.file.originalname.split(".").pop().toLowerCase();
-
-    let textContent = "";
-    if (ext === "pdf") {
-      const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdf(dataBuffer);
-      textContent = data.text;
-    } else if (ext === "docx") {
-      const data = await mammoth.extractRawText({ path: filePath });
-      textContent = data.value;
-    } else if (ext === "txt") {
-      textContent = fs.readFileSync(filePath, "utf8");
-    } else {
-      return res.status(400).json({ error: "Unsupported file type" });
-    }
-
-    // Clean up uploaded file
-    fs.unlinkSync(filePath);
-
-    // Call Gemini API
-    const result = await model.generateContent(`Analyze this text:\n\n${textContent}`);
-    res.json({ summary: result.response.text() });
-  } catch (err) {
-    console.error("Error processing file:", err);
-    res.status(500).json({ error: "Failed to process file" });
-  }
+// A simple endpoint to check if the server is running and reachable.
+app.get("/ping", (req, res) => {
+    console.log("✅ Ping received!");
+    res.json({ message: "pong" });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
