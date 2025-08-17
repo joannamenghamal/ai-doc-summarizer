@@ -1,105 +1,69 @@
 import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import { fileURLToPath } from 'url';
-import path from 'path';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
-import fs from "fs/promises";
-import * as pdfjsLib from "pdfjs-dist";
-
-
-// Destructure the necessary objects from the imported library
-const { getDocument } = pdfjsLib;
-
-// Figure out current file directory (ESM safe)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Configure pdfjs-dist worker source
-//GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+import fs from "fs";
+import pdf from "pdf-parse";
+import mammoth from "mammoth";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = express();
-app.use(cors());            
-app.use(express.json());
-dotenv.config({ path: path.join(__dirname, '.env') });
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-console.log("Env path:", path.join(__dirname, '.env'));
-console.log("API Key Loaded?", !!process.env.GEMINI_API_KEY);
-
-// Multer for file uploads - destination is the 'uploads' folder
 const upload = multer({ dest: "uploads/" });
+const PORT = process.env.PORT || 3001;
 
-// A simple utility to introduce a small delay if needed.
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+// Gemini setup
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-// Function to extract text from a PDF buffer
-async function extractTextFromPDF(pdfBuffer) {
-    const pdf = await getDocument({ data: pdfBuffer }).promise;
-    let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        text += content.items.map(item => item.str).join(' ') + '\n';
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Handle text input directly (pasted by user)
+app.post("/api/analyze-text", async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || text.trim() === "") {
+      return res.status(400).json({ error: "No text provided" });
     }
-    return text;
-}
 
-app.get("/", (req, res) => {
-    res.send("Server is running!");
+    const result = await model.generateContent(`Analyze this text:\n\n${text}`);
+    res.json({ summary: result.response.text() });
+  } catch (err) {
+    console.error("Error analyzing text:", err);
+    res.status(500).json({ error: "Failed to analyze text" });
+  }
 });
 
-app.post("/summarize", upload.single("file"), async (req, res) => {
-    let extractedText = req.body.text;
-    let filePath;
+// Handle file uploads (pdf/docx/txt)
+app.post("/api/upload", upload.single("file"), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const ext = req.file.originalname.split(".").pop().toLowerCase();
 
-    try {
-        if (req.file && req.file.mimetype === "application/pdf") {
-            filePath = req.file.path;
-            console.log(`Uploaded file path: ${filePath}`);
-
-            const dataBuffer = await fs.readFile(filePath);
-            console.log(`Buffer length: ${dataBuffer.length}`);
-
-            // Call the new function to extract text using pdfjs-dist
-            extractedText = await extractTextFromPDF(dataBuffer);
-            console.log("PDF parsing completed successfully with pdfjs-dist.");
-        }
-
-        if (!extractedText || !extractedText.trim()) {
-            return res.status(400).json({ error: "No readable text or PDF content found" });
-        }
-
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const prompt = `Summarize the following text clearly and concisely:\n\n${extractedText}`;
-
-        const result = await model.generateContent(prompt);
-        const summary = result.response.text();
-
-        res.json({ summary });
-    } catch (error) {
-        console.error("Error in /summarize endpoint:", error);
-        res.status(500).json({ error: "Error generating summary", details: error.message });
-    } finally {
-        if (filePath) {
-            try {
-                await fs.access(filePath);
-                await fs.unlink(filePath);
-                console.log(`Temporary file deleted: ${filePath}`);
-            } catch (unlinkError) {
-                console.error(`Failed to delete temporary file ${filePath}:`, unlinkError);
-            }
-        }
+    let textContent = "";
+    if (ext === "pdf") {
+      const dataBuffer = fs.readFileSync(filePath);
+      const data = await pdf(dataBuffer);
+      textContent = data.text;
+    } else if (ext === "docx") {
+      const data = await mammoth.extractRawText({ path: filePath });
+      textContent = data.value;
+    } else if (ext === "txt") {
+      textContent = fs.readFileSync(filePath, "utf8");
+    } else {
+      return res.status(400).json({ error: "Unsupported file type" });
     }
+
+    // Clean up uploaded file
+    fs.unlinkSync(filePath);
+
+    // Call Gemini API
+    const result = await model.generateContent(`Analyze this text:\n\n${textContent}`);
+    res.json({ summary: result.response.text() });
+  } catch (err) {
+    console.error("Error processing file:", err);
+    res.status(500).json({ error: "Failed to process file" });
+  }
 });
 
-app.get("/ping", (req, res) => {
-    console.log("✅ Frontend pinged backend!");
-    res.json({ message: "pong" });
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
-
-app.listen(4000, () => console.log("Server running on port 4000"));
