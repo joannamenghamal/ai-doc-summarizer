@@ -7,12 +7,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
 import mammoth from 'mammoth';
-import { createRequire } from 'module';
-
-// The require function is created here to correctly import the CommonJS
-// build of 'pdf-parse' in our ES Module environment.
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
@@ -35,10 +29,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Function to extract text from a PDF buffer using pdf-parse
+// Function to extract text from a PDF buffer using a dynamic import for pdf-parse
 async function extractTextFromPDF(pdfBuffer) {
-    const data = await pdfParse(pdfBuffer);
-    return data.text;
+    try {
+        // Use a dynamic import to ensure the module is loaded correctly
+        const pdfParseModule = await import('pdf-parse');
+        const pdfParse = pdfParseModule.default;
+        const data = await pdfParse(pdfBuffer);
+        return data.text;
+    } catch (err) {
+        console.error("Error with pdf-parse dynamic import:", err);
+        throw new Error("Failed to parse PDF with pdf-parse. Module might be missing.");
+    }
 }
 
 // Unified API endpoint to handle both file uploads and pasted text
