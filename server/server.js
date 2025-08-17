@@ -29,6 +29,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// A simple health check route for the root URL
+app.get("/", (req, res) => {
+    res.status(200).send("AI Text Summarizer backend is running. Use the /summarize and /ping endpoints.");
+});
+
 // Function to extract text from a PDF buffer using a dynamic import for pdf-parse
 async function extractTextFromPDF(pdfBuffer) {
     try {
@@ -43,9 +48,6 @@ async function extractTextFromPDF(pdfBuffer) {
     }
 }
 
-app.get("/", (req, res) => {
-    res.status(200).send("AI Document Summarizer backend server running!");
-});
 // Unified API endpoint to handle both file uploads and pasted text
 app.post("/summarize", upload.single("file"), async (req, res) => {
     let extractedText = req.body.text;
