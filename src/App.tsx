@@ -147,7 +147,7 @@ const handlePing = async () => {
                         type="file"
                         id="file-upload"
                         accept=".pdf,.doc,.txt"
-                        className="block text-gray-700 w-full p-2 sm:p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                         onChange={(e) => {
                             if (e.target.files && e.target.files[0]) {
                                 setFile(e.target.files[0]);
@@ -155,7 +155,7 @@ const handlePing = async () => {
                         }}
                     />
                     <button
-                        className="mt-4 w-full bg-blue-600 text-white font-bold py-2 sm:py-3 px-4 rounded-xl shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                        className="mt-4 w-full bg-blue-600 text-gray font-bold py-2 sm:py-3 px-4 rounded-xl shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
                         onClick={handleFileSummarize}
                     >
                         Summarize File
