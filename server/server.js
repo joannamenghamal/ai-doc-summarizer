@@ -38,8 +38,11 @@ app.get("/", (req, res) => {
 async function extractTextFromPDF(pdfBuffer) {
     try {
         // Use a dynamic import to ensure the module is loaded correctly
-        const pdfParseModule = await import('pdf-parse');
-        const pdfParse = pdfParseModule.default;
+        const { default: pdfParse} = await import('pdf-parse');
+        //const pdfParse = pdfParseModule.default;
+        if (!Buffer.isbuffer(pdfBuffer)) {
+            throw new Error("extractTextFromPDF requires a Buffer, not a path/string");
+        }
         const data = await pdfParse(pdfBuffer);
         return data.text;
     } catch (err) {
