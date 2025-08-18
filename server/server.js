@@ -7,10 +7,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import fs from "fs/promises";
 import mammoth from 'mammoth';
+import { createRequire } from "module";
+
 
 // Figure out current file directory (ESM safe)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse"); 
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -38,10 +42,9 @@ app.get("/", (req, res) => {
 async function extractTextFromPDF(pdfBuffer) {
     try {
         // Use a dynamic import to ensure the module is loaded correctly
-        const { default: pdf } = await import('pdf-parse');
-        //const pdfParse = pdfParseModule.default;
-        if (!Buffer.isbuffer(pdfBuffer)) {
-            throw new Error("extractTextFromPDF requires a Buffer, not a path/string");
+        //const { default: pdf } = await import('pdf-parse');
+        if (!Buffer.isBuffer(pdfBuffer)) {
+            throw new Error("Expected a Buffer, got " + typeof pdfBuffer);
         }
         const data = await pdf(pdfBuffer);
         return data.text;
