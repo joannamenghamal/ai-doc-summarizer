@@ -97,7 +97,7 @@ const handlePing = async () => {
     return (
         <div className="bg-blue-500 min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
             <div className="bg-white p-6 sm:p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-xl md:max-w-3xl">
-                <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-4 sm:mb-6">AI Text Summarizer</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-4 sm:mb-6">AI Document Summarizer</h1>
                 
                 {/* Tab navigation */}
                 <div className="flex border-b-2 border-gray-200 mb-4 sm:mb-6">
@@ -147,7 +147,7 @@ const handlePing = async () => {
                         type="file"
                         id="file-upload"
                         accept=".pdf,.doc,.txt"
-                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                        className="block text-gray-700 w-full p-2 sm:p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                         onChange={(e) => {
                             if (e.target.files && e.target.files[0]) {
                                 setFile(e.target.files[0]);
