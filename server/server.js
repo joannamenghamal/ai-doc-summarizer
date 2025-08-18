@@ -29,9 +29,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // Middleware for CORS and JSON body parsing
-app.use(cors({
-    origin: "https://ai-doc-summarizer-beta.vercel.app/"
-})); //Allow requests from frontend
+app.use(cors()); //Allow requests from frontend
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
