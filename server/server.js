@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 4000;
 // Set up Gemini and the model
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // Using gemini-1.5-flash for efficient and high-quality summarization.
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 // Middleware for CORS and JSON body parsing
 app.use(cors()); //Allow requests from frontend
