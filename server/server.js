@@ -97,7 +97,7 @@ app.post("/summarize", upload.single("file"), async (req, res) => {
 
         const prompt = `Summarize the following text clearly and concisely:\n\n${extractedText}`;
         const result = await model.generateContent(prompt);
-        const summary = result.response.text();
+        const summary = await result.response.text();
 
         res.json({ summary });
     } catch (error) {
